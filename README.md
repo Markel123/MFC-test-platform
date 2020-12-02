@@ -26,7 +26,7 @@ This is an vision algrithom test platform based on OpenCV and MFC.
  * 若要添加自定义变量(和控件无关的变量)，可以在此结构体内添加，
         (或者其他更好的方法)
 
-###### 点击按钮后执行的函数为:
+###### 点击Analyze按钮后执行的函数为:
  * void CJINORunDlg::OnClickedButtonAnalyzePic()
  * 位于文件 “JINORunDlg.cpp”
 
