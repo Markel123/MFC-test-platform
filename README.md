@@ -13,6 +13,7 @@ This is an vision algrithom test platform based on OpenCV and MFC.
 * 画好ROI框后，点击按钮Reset ROI
 * 最后点击按钮Analyze，输出分析结果
 * 鼠标右键按住不放并拖拽，可以放大当前点击的区域，显示到左上角的小窗口
+* 点击Analyze按钮之后，画ROI功能关闭
 * Bug1：刚打开exe的时候，左上角的小窗口尺寸没初始化，显得很难看
 * Bug2：小窗口应该能够跟随鼠标移动才对
 
