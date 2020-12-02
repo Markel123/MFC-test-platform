@@ -1,5 +1,5 @@
 # MFC-test-platform
-This is an OpenCV based MFC test platform.
+This is an vision algrithom test platform based on OpenCV and MFC.
 ---------------------------------------------------------------
 ##### 需要注意
 * 环境为Windows，VisualStudio2017，编译器版本vc141
