@@ -5,6 +5,7 @@ This is an vision algrithom test platform based on OpenCV and MFC.
 * 环境为Windows，VisualStudio2017，编译器版本vc141
 * OpenCV版本3.4.10, vc14
 * 解决方案配置为 Debug，x64
+* 解决方案被加密了，所以需要自己新建解决方案，然后将相关文件放到对应位置
 
 ##### 关于初版测试环境 <界面> 的使用说明
 * 点击按钮<OPEN>，打开图片
