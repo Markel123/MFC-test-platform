@@ -13,17 +13,16 @@ This is an OpenCV based MFC test platform.
 * 最后点击按钮<Analyze>，输出分析结果
 
 ###### 关于初版测试环境 <程序> 部分的说明
-###### 此部分目前较为混乱，需要整理，部分写法需要优化
-###### 1. 目前图像处理逻辑函数: 
+###### 目前图像处理逻辑函数: 
  * 用类JINOItem1
  * 声明在JINOImageProcess.h，定义放在JINOImageProcess.cpp
 
-###### 2. 大部分变量放在结构体: 
+###### 大部分变量放在结构体: 
  * struJINOFeature
  * 若要添加自定义变量(和控件无关的变量)，可以在此结构体内添加，
         (或者其他更好的方法)
 
-###### 3. 点击按钮后执行的函数为:
+###### 点击按钮后执行的函数为:
  * void CJINORunDlg::OnClickedButtonAnalyzePic()
  * 位于文件 “JINORunDlg.cpp”
 
