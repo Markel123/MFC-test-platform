@@ -3,7 +3,7 @@ This is an vision algrithom test platform based on OpenCV and MFC.
 ---------------------------------------------------------------
 ##### 需要注意
 * 环境为Windows，VisualStudio2017，编译器版本vc141
-* OpenCV版本3.4.10
+* OpenCV版本3.4.10, vc14
 * 解决方案配置为 Debug，x64
 
 ##### 关于初版测试环境 <界面> 的使用说明
