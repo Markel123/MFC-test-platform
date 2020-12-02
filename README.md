@@ -1,18 +1,18 @@
 # MFC-test-platform
 This is an OpenCV based MFC test platform.
 ---------------------------------------------------------------
-###### 需要注意
+##### 需要注意
 * 环境为Windows，VisualStudio2017，编译器版本vc141
 * OpenCV版本3.4.10
 * 解决方案配置为 Debug，x64
 
-###### 关于初版测试环境 <界面> 的使用说明
+##### 关于初版测试环境 <界面> 的使用说明
 * 点击按钮<OPEN>，打开图片
 * 打开图片之后，需要左键先点击一下图片所在的窗口，以启用ROI画框功能
 * 画好ROI框后，点击按钮<Reset ROI>
 * 最后点击按钮<Analyze>，输出分析结果
 
-###### 关于初版测试环境 <程序> 部分的说明
+##### 关于初版测试环境 <程序> 部分的说明
 ###### 目前图像处理逻辑函数: 
  * 用类JINOItem1
  * 声明在JINOImageProcess.h，定义放在JINOImageProcess.cpp
