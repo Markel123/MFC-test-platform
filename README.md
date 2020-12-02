@@ -12,8 +12,8 @@ This is an OpenCV based MFC test platform.
 * 画好ROI框后，点击按钮<Reset ROI>
 * 最后点击按钮<Analyze>，输出分析结果
 
-##### 关于初版测试环境 <程序> 部分的说明
-##### 此部分目前较为混乱，需要整理，部分写法需要优化
+###### 关于初版测试环境 <程序> 部分的说明
+###### 此部分目前较为混乱，需要整理，部分写法需要优化
 ###### 1. 目前图像处理逻辑函数: 
  * 用类JINOItem1
  * 声明在JINOImageProcess.h，定义放在JINOImageProcess.cpp
