@@ -44,27 +44,66 @@ bool CJINOItem1::JINOImgProcess1(Mat &src, Mat &outImg) {
 
 #pragma endregion
 
-#pragma region 这里放图像处理逻辑 针对的是图像roiImg 
+#pragma region 这里放图像处理逻辑 针对的是图像roiImg
 	Mat roiImg = outImg(ROI1);
 
-	vector<int>mMaxIndVec; vector<int>mMinIndVec;
+	vector <double>gradVector;
+	vector<int>peakIndexVec;
+	vector <double>peakValueVec;
+
+	int HV = 1, FB = 0;
+	GetGradVector(roiImg, gradVector,5,HV,FB);
+	GetMulPeaksEx(gradVector, peakIndexVec, peakValueVec,5);
+	int maxValue = *max_element(peakValueVec.begin(), peakValueVec.end());
+	int maxValIndex= max_element(gradVector.begin(), gradVector.end())- gradVector.begin();
+	HistShow(gradVector, maxValue, HV);
+	int temp = peakIndexVec[1];
+	//如果
+	/*if (peakValueVec[1] < 3) {
+		peakIndVec.clear();
+		peakValueVec.clear();
+		GetGradVector(roiImg, gradVector, 5, HV, 1-FB);
+		if (peakValueVec[1] < temp) {
+			AfxMessageBox(_T("No Line Exists or Lines Too Weak!"));
+			return false;
+		}
+	}*/
+	//
+	/*vector<int>mMaxIndVec; vector<int>mMinIndVec;
 	vector<double>mMaxValueVec; vector<double>mMinValueVec;
-	GetMulGradient(roiImg, 8, mMaxIndVec, mMinIndVec, mMinValueVec, mMaxValueVec, 20, 0, 0, 20);
+	GetMulGradient(roiImg, 8, mMaxIndVec, mMinIndVec, mMinValueVec, mMaxValueVec, tt, 0, 0, 20);
 	auto LineIndex = 1;
 	if (LineIndex > mMaxIndVec.size() || LineIndex < 1)
 	{
 		AfxMessageBox(_T("Grab Line Index exceedes the true range!!!"));
 		return false;
-	}
-	auto LineX1 = mMaxIndVec[LineIndex - 1] + ROI1.x;
-	line(src, Point(LineX1, ROI1.y), Point(LineX1, ROI1.y + ROI1.height), Scalar(0, 255, 0), 3);
-	/*for (int i = 0; i < mMaxIndVec.size(); i++){
-		line(imgout, Point(mMaxIndVec[i] + CamRect.x, CamParaVal().nStartY2), Point(mMaxIndVec[i] + CamRect.x, CamParaVal().nStartY2 + CamParaVal().nYrange2), Scalar(0, 255, 0), 3);
 	}*/
+
+	auto LineX1 = peakIndexVec[1] + ROI1.x;
+	auto LineY1 = peakIndexVec[1] + ROI1.y;
+
+	if (HV == 1) {
+		line(src, Point(maxValIndex + ROI1.x-1, ROI1.y), Point(maxValIndex + ROI1.x-1, ROI1.y + ROI1.height), Scalar(0, 0, 255), 2);
+		for (int i = 0; i < peakIndexVec.size(); i++) {
+
+			if (peakIndexVec[i] > 3) {
+				line(src, Point(peakIndexVec[i] + ROI1.x, ROI1.y), Point(peakIndexVec[i] + ROI1.x, ROI1.y + ROI1.height), Scalar(0, 255, 0), 2);
+			}
+		}
+	}
+	else if (HV == 0) {
+		line(src, Point(ROI1.x, maxValIndex + ROI1.y-1), Point(ROI1.x+ROI1.width, maxValIndex + ROI1.y-1), Scalar(0, 0, 255), 2);
+		for (int i = 0; i < peakIndexVec.size(); i++) {
+			if (peakIndexVec[i] > 3) {
+				line(src, Point(ROI1.x, peakIndexVec[i] + ROI1.y), Point(ROI1.x + ROI1.width, peakIndexVec[i] + ROI1.y), Scalar(0, 255, 0), 2);
+			}
+		}
+	}
 
 #pragma endregion
 
 #pragma region 后处理 等
+
 	outImg = src;
 	JINOFeature.analyzing = true;
 
@@ -128,6 +167,7 @@ bool CJINOItem1::JINOWindowAttach(int littleWindowSize, int ID, const char* pWin
 }
 
 #pragma region 手动阈值
+
 bool CJINOItem1::GetMulGradient(Mat& src,
 	int n,					/*左个各采集n个*/
 	vector<int> &MaxOrder,			/*最大梯度的竖线*/
@@ -364,6 +404,325 @@ bool CJINOItem1::GetMulGradient(Mat& src,
 	}
 }
 
+
+bool CJINOItem1::GetGradient(Mat& src,
+	int n,					/*左个各采集n个*/
+	int &MaxOrder,			/*最大梯度的竖线*/
+	int &MinOrder,			/*最小梯度的竖线*/
+	double &MinGradient,	/*最小平均梯度*/
+	double &MaxGradient,    /*最大平均梯度*/
+	int direction           /*检测方向*/
+)
+{
+	if (!src.data)
+		return FALSE;
+	vector<int>	subgray;//一列的灰度值之和
+	vector<double> gradient;//梯度
+	int minCol = 0;
+	int maxCol = 0;
+	double	maxGradient = 0;
+	double minGradient = 0;
+	double dGradient = 0;
+
+	if (direction == 0) //如果0是横向检测，否则是纵向找梯度
+	{
+		for (int col = 0; col < src.cols; ++col)
+		{
+			int tmp = 0;
+			for (int row = 0; row < src.rows; ++row)
+			{
+				tmp += src.at<uchar>(row, col);
+			}
+			subgray.push_back(tmp);
+		}
+		if (subgray.size() > 10)
+		{
+			for (int i = 0; i < subgray.size(); i++)
+			{
+				dGradient = 0;
+				if (i - n >= 0 && i + n - 1 < subgray.size())
+				{
+					double rSubGradient = 0;
+					double lSubGradient = 0;
+					for (int j = 0; j < n; j++)
+					{
+						rSubGradient += subgray[i + j];
+						lSubGradient += subgray[i - j - 1];
+					}
+					dGradient = rSubGradient - lSubGradient;
+				}
+				gradient.push_back(dGradient / (double)n / (double)src.rows);
+			}
+
+			for (int i = 0; i < gradient.size(); i++)
+			{
+				if (gradient[i] > maxGradient)
+				{
+					maxGradient = gradient[i];
+					maxCol = i;
+				}
+				if (gradient[i] < minGradient)
+				{
+					minGradient = gradient[i];
+					minCol = i;
+				}
+			}
+
+			MaxOrder = maxCol;
+			MinOrder = minCol;
+			MinGradient = minGradient;
+			MaxGradient = maxGradient;
+			return TRUE;
+		}
+		else
+		{
+			return FALSE;
+		}
+	}
+	else
+	{
+		for (int row = 0; row < src.rows; ++row)
+		{
+			int tmp = 0;
+			for (int col = 0; col < src.cols; ++col)
+			{
+				tmp += src.at<uchar>(row, col);
+			}
+			subgray.push_back(tmp);
+		}
+		if (subgray.size() > 10)
+		{
+			for (int i = 0; i < subgray.size(); i++)
+			{
+				dGradient = 0;
+				if (i - n >= 0 && i + n - 1 < subgray.size())
+				{
+					double rSubGradient = 0;
+					double lSubGradient = 0;
+					for (int j = 0; j < n; j++)
+					{
+						rSubGradient += subgray[i + j];
+						lSubGradient += subgray[i - j - 1];
+					}
+					dGradient = rSubGradient - lSubGradient;
+				}
+				gradient.push_back(dGradient / (double)n / (double)src.cols);
+			}
+
+			for (int i = 0; i < gradient.size(); i++)
+			{
+				if (gradient[i] > maxGradient)
+				{
+					maxGradient = gradient[i];
+					maxCol = i;
+				}
+				if (gradient[i] < minGradient)
+				{
+					minGradient = gradient[i];
+					minCol = i;
+				}
+			}
+
+			MaxOrder = maxCol;
+			MinOrder = minCol;
+			MinGradient = minGradient;
+			MaxGradient = maxGradient;
+			return TRUE;
+		}
+		else
+		{
+			return FALSE;
+		}
+	}
+}
+
+bool CJINOItem1::GetFirstGradient(Mat& src,
+	int n,					/*左个各采集n个*/
+	int &MaxOrder,			/*最大梯度的竖线*/
+	int &MinOrder,			/*最小梯度的竖线*/
+	double &MinGradient,	/*最小平均梯度*/
+	double &MaxGradient,    /*最大平均梯度*/
+	int Threshold,          /*灰度阈值*/
+	int direction,          /*检测方向：1找水平线,0找竖直线*/
+	int direction1          /*检测方向：0正向,1反向*/
+)
+{
+	if (!src.data)
+		return FALSE;
+	vector<int>	subgray;//一列的灰度值之和
+	vector<double> gradient;//梯度
+	int minCol = 0;
+	int maxCol = 0;
+	double	maxGradient = 0;
+	double minGradient = 0;
+	double dGradient = 0;
+
+	if (direction == 0) //
+	{
+		for (int col = 0; col < src.cols; ++col)
+		{
+			int tmp = 0;
+			for (int row = 0; row < src.rows; ++row)
+			{
+				tmp += src.at<uchar>(row, col);
+			}
+			subgray.push_back(tmp);
+		}
+		if (subgray.size() > 10)
+		{
+			for (int i = 0; i < subgray.size(); i++)
+			{
+				dGradient = 0;
+				if (i - n >= 0 && i + n - 1 < subgray.size())
+				{
+					double rSubGradient = 0;
+					double lSubGradient = 0;
+					for (int j = 0; j < n; j++)
+					{
+						rSubGradient += subgray[i + j];
+						lSubGradient += subgray[i - j - 1];
+					}
+					dGradient = rSubGradient - lSubGradient;
+				}
+				gradient.push_back(dGradient / (double)n / (double)src.rows);
+			}
+			if (direction1 == 0)
+			{
+				for (int i = 0; i < gradient.size(); i++)   //找第一个最大梯度
+				{
+					if (gradient[i] > Threshold)
+					{
+						maxGradient = gradient[i];
+						maxCol = i;
+						break;
+					}
+				}
+				for (int i = 0; i < gradient.size(); i++)
+				{
+					if (gradient[i] < -Threshold)
+					{
+						minGradient = gradient[i];
+						minCol = i;
+						break;
+					}
+				}
+			}
+			else
+			{
+				for (int i = gradient.size() - 1; i > 0; i--)   //找第一个最大梯度
+				{
+					if (gradient[i] > Threshold)
+					{
+						maxGradient = gradient[i];
+						maxCol = i;
+						break;
+					}
+				}
+				for (int i = gradient.size() - 1; i > 0; i--)
+				{
+					if (gradient[i] < -Threshold)
+					{
+						minGradient = gradient[i];
+						minCol = i;
+						break;
+					}
+				}
+			}
+			MaxOrder = maxCol;
+			MinOrder = minCol;
+			MinGradient = minGradient;
+			MaxGradient = maxGradient;
+			return TRUE;
+		}
+		else
+		{
+			return FALSE;
+		}
+	}
+	else
+	{
+		for (int row = 0; row < src.rows; ++row)
+		{
+			int tmp = 0;
+			for (int col = 0; col < src.cols; ++col)
+			{
+				tmp += src.at<uchar>(row, col);
+			}
+			subgray.push_back(tmp);
+		}
+		if (subgray.size() > 10)
+		{
+			for (int i = 0; i < subgray.size(); i++)
+			{
+				dGradient = 0;
+				if (i - n >= 0 && i + n - 1 < subgray.size())
+				{
+					double rSubGradient = 0;
+					double lSubGradient = 0;
+					for (int j = 0; j < n; j++)
+					{
+						rSubGradient += subgray[i + j];
+						lSubGradient += subgray[i - j - 1];
+					}
+					dGradient = rSubGradient - lSubGradient;
+				}
+				gradient.push_back(dGradient / (double)n / (double)src.cols);
+			}
+			if (direction1 == 0)
+			{
+				for (int i = 0; i < gradient.size(); i++)   //找第一个最大梯度
+				{
+					if (gradient[i] > Threshold)
+					{
+						maxGradient = gradient[i];
+						maxCol = i;
+						break;
+					}
+				}
+				for (int i = 0; i < gradient.size(); i++)
+				{
+					if (gradient[i] < -Threshold)
+					{
+						minGradient = gradient[i];
+						minCol = i;
+						break;
+					}
+				}
+			}
+			else
+			{
+				for (int i = gradient.size() - 1; i > 0; i--)   //找第一个最大梯度
+				{
+					if (gradient[i] > Threshold)
+					{
+						maxGradient = gradient[i];
+						maxCol = i;
+						break;
+					}
+				}
+				for (int i = gradient.size() - 1; i > 0; i--)
+				{
+					if (gradient[i] < -Threshold)
+					{
+						minGradient = gradient[i];
+						minCol = i;
+						break;
+					}
+				}
+			}
+
+			MaxOrder = maxCol;
+			MinOrder = minCol;
+			MinGradient = minGradient;
+			MaxGradient = maxGradient;
+			return TRUE;
+		}
+		else
+		{
+			return FALSE;
+		}
+	}
+}
 #pragma endregion
 
 #pragma region 返回自动阈值 1.灰度阈值2.梯度阈值
@@ -371,17 +730,81 @@ bool CJINOItem1::GetMulGradient(Mat& src,
  *@
 */
 bool CJINOItem1::GetThresholdValueBin(Mat &src,double &BinThreshReturn) {
-
-	return true;
-}
-/*
-*@
-*/
-bool CJINOItem1::GetThresholdValueGrad(Mat &src, double &GradThreshReturn) {
 	
 	return true;
 }
+/* ver 0.1 
+@ 对于多条线的情况，返回一个能够找出所有线的梯度阈值
+@ 将灰度值转换为单行/列的一维梯度数组
+@ 从梯度数组中 搜索/生成 合适的值作为阈值输出
+@ 搜索方法：1.均值+offset 2.中值+offset 3.面积最大法/滑动窗口 4.大窗口滤波处理之后求二阶导数 5.前几个方法一个都没用到
+@ ver 0.2 此函数只负责返回梯度数组
+@ (Mat &src, vector<double>&gradVec, int n, int directionHV, int directionFB)
+*/
+bool CJINOItem1::GetGradVector(Mat &src, vector<double>&gradVec, int n, int directionHV, int directionFB) {
+	if (src.data == NULL) {
+		return false;
+	}
+	vector<int> toGradVec;
+	//V Line
+	if (directionHV==1) {
+		for (int col = 0; col < src.cols; col++) {
+			int sumX = 0;
+			for (int row = 0; row < src.rows; row++) {
+				sumX += src.at<uchar>(row, col);
+			}
+			toGradVec.push_back(sumX);
+		}
+	}
+	//H Line
+	else if (directionHV == 0) {
+		for (int row = 0; row < src.rows; row++) {
+			int sumX = 0;
+			for (int col = 0; col < src.cols; col++) {
+				sumX += src.at<uchar>(row, col);
+			}
+			toGradVec.push_back(sumX);
+		}
+	}
+	for (int i = 0; i < toGradVec.size(); i++) {
+		double leftSum = 0, rightSum = 0, grad = 0;
+		for (int j = 0; j < n; j++) {
+			if (i >= n && i + n - 1 < toGradVec.size()) {//认为前/后n个不存在目标，所以不处理前n个
+				leftSum += toGradVec[i - j - 1];
+				rightSum += toGradVec[i + j];
+			}
+			grad =((1-directionFB)? (rightSum - leftSum):(leftSum - rightSum)) / double(n) / double(src.cols);
+		}
+		gradVec.push_back(grad);
+	}
+
+#pragma region 求值//返回值丢到vector
+	////均值 效果不好
+	//int gradMean=std::accumulate(gradVec.begin()+n, gradVec.end()-n-1, 0)/(gradVec.size()-2*n);
+	////面积 效果不好 逻辑不如求梯度最大值简单
+	////1.因为我们知道ROI内应该有几条线(假设有n条)，所以返回前n个最大面积处的梯度值到一个vector
+	//auto mKernelX=cv::getGaussianKernel(5, 5);//Mat mKernel = Mat::ones(5, 1, src.type());
+	//Mat inX = Mat(gradVec);
+	//auto outX= gradVec;
+	//cv::GaussianBlur(gradVec, outX, Size(5, 1), 5);
+	//
+	////二阶导数//需要先高斯滤波
+	//vector<double>seGrad;
+	//for (int i = 0; i < outX.size()-1; i++) {
+	//	seGrad.push_back(outX[i + 1] - outX[i]);
+	//}
+	//求多个峰值//目前的做法是认为ROI内最多有三条线
+	//vector<double>peakValueVec;
+
+	//GetMulPeaks(gradVec, peakIndVec, peakValueVec, directionHV,3);
 #pragma endregion
+	return true;
+}
+#pragma endregion
+
+bool CJINOItem1::GetThresholdValueGradEx(Mat &src, double &GradThreshReturn, int n, int directionLR, int directionFB) {
+	return true;
+}
 
 bool CJINOItem1::Preprocess(Mat &src) {
 	if (src.data == NULL) {
@@ -406,3 +829,239 @@ bool CJINOItem1::Preprocess(Mat &src) {
 	return true;
 }
 
+/*
+@ 最简单的做法是认为ROI内最多不超过3条线，将三个梯度最大的索引找到并降序排序
+@ 先找全局最大值，之后以最大值为界，前半部分找一个最大值，后半部分找一个最大值
+@ ver 0.1.0 
+@ (vector<double>&inputVec, vector<int>&peakIndVec, vector<double>&peakValueVec,int directionHV,int lineNum,int interval,int n) {
+*/
+bool CJINOItem1::GetMulPeaks(vector<double>&inputVec, vector<int>&peakIndVec, vector<double>&peakValueVec,int directionHV,int lineNum,int interval,int n) {
+	//auto gBlurVec = inputVec;
+	//cv::GaussianBlur(inputVec, gBlurVec, Size(10, 1), 10);
+	//gBlurVec=(vector<double>)gBlurVec;
+	//int maxInd = 0;
+	//if (!(maxInd < 0)) {
+	//	int maxValue = *max_element(gBlurVec.begin(), gBlurVec.end());
+	//	maxInd = max_element(gBlurVec.begin(), gBlurVec.end()) - gBlurVec.end();
+	//		
+	//}
+	////Method2  如果此值后面连续n(比如 3)个值都比它小，则认为它是局部最大值
+	////二阶导数
+	//vector<double>seGrad;
+	//for (int i = 0; i < gBlurVec.size() - 1; i++) {
+	//	seGrad.push_back(gBlurVec[i + 1] - gBlurVec[i]);
+	//}
+	/*
+	1.直接找全局最大值
+	2.
+	*/
+	int maxValue = *max_element(inputVec.begin(), inputVec.end());
+	int maxInd = max_element(inputVec.begin(), inputVec.end()) - inputVec.begin();
+	HistShow(inputVec, maxValue, directionHV);
+	//int histMaxV = maxValue;
+	//if (directionHV == 0) {
+	//	if (maxValue< 30) {
+	//		histMaxV = maxValue + 30;
+	//	}
+	//	Mat histImg = Mat::ones(inputVec.size(), histMaxV + 2, CV_8UC3);
+	//	for (int i = 0; i < inputVec.size(); i++) {
+	//		Rect histI = Rect(histMaxV + 2 - inputVec[i], i, inputVec[i],1);
+	//		cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
+	//	}
+	//	JINOFeature.histWindowWidth = inputVec.size();
+	//	destroyWindow(JINOFeature.histWindowName);
+	//	imshow(JINOFeature.histWindowName, histImg);
+	//}
+	//if (directionHV == 1) {
+	//	Mat histImg = Mat::ones(histMaxV + 2, inputVec.size(), CV_8UC3);
+	//	for (int i = 0; i < inputVec.size(); i++) {
+	//		Rect histI = Rect(i, histMaxV + 2 - inputVec[i], 1, inputVec[i]);
+	//		cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
+	//	}
+	//	JINOFeature.histWindowHeight = histMaxV + 2;
+	//	destroyWindow(JINOFeature.histWindowName);
+	//	imshow(JINOFeature.histWindowName, histImg);
+	//}
+	JINOFeature.directionHV = directionHV;
+	/*bool isLocalMax = false;
+	int localMaxIndex;
+	double localMaxValue = 0;
+	int localCount = 0;
+	for (int i = 0; i < inputVec.size(); i++) {
+		if (inputVec[i] > localMaxValue) {
+
+			localMaxValue = inputVec[i];
+		}
+		else if (inputVec[i] < localMaxValue) {
+
+
+		}
+	}*/
+	//目前认为最多存在三条边
+	//用递归来查找局部最大值
+	//1.查找全局最大值
+	//2.用全局最大索引将数组分割成2个
+	////////////
+	int maxVLeft = 0,maxVRight =0, maxIndLeft =0, maxIndRight = 0;
+	if (lineNum>1) {
+		//左侧//最大梯度的左/右侧可能会不存在线，最大梯度太靠左/右边界了
+		if (maxInd - interval > n) {
+			vector<int>newVectorL;
+			for (int i = 0; i < maxInd - interval; i++) {
+				newVectorL.push_back(inputVec[i]);
+			}
+
+			maxVLeft = *max_element(newVectorL.begin(), newVectorL.end());
+			maxIndLeft = max_element(newVectorL.begin(), newVectorL.end()) - newVectorL.begin();
+		}
+		//右侧
+		if (maxInd + interval < inputVec.size() - n) {
+			vector<int>newVectorR;
+			for (int i = maxInd + interval; i < inputVec.size(); i++) {
+				newVectorR.push_back(inputVec[i]);
+			}
+			maxVRight = *max_element(newVectorR.begin(), newVectorR.end());
+			maxIndRight = max_element(newVectorR.begin(), newVectorR.end()) - newVectorR.begin() + maxInd + interval + 1;
+		}
+		//int secondV = max(maxVLeft, maxVRight); int thirdV = min(maxVLeft, maxVRight);
+		//auto secondInd = maxIndRight > maxIndLeft ? maxIndRight : maxIndLeft;
+		//auto thirdInd= maxIndRight < maxIndLeft ? maxIndRight : maxIndLeft;
+		//peakIndVec.push_back(secondInd);peakIndVec.push_back(thirdInd);
+		//peakValueVec.push_back(secondV); peakValueVec.push_back(thirdV);
+
+		peakIndVec.push_back(maxIndLeft);peakIndVec.push_back(maxInd);peakIndVec.push_back(maxVLeft);
+		peakValueVec.push_back(maxVLeft);peakValueVec.push_back(maxValue);peakValueVec.push_back(maxVRight);
+	}
+
+	return true;
+}
+/*
+@ 如果当前最大值localMax往后 {range} 范围内没有比localMax大的值，则认为localMax为一个局部最大值
+@ 按照上->下 || 左->右 的顺序输出 局部最大值索引到peakIndex，值到peakValue
+@ ver 0.2.0
+@ (vector<int>&gradVec, vector<int>&peakIndex, vector<double>&peakValue, int range = 5)
+*/
+bool CJINOItem1::GetMulPeaksEx(vector<double>&gradVec, vector<int>&peakIndex, vector<double>&peakValue, int range) {
+
+	int localCnt = 0;
+	int trueCnt = 0;
+	double localMax = -1000;
+	int localMaxIndex = 0;
+	bool findOneMax = false;
+	//正向找一次
+	for (int i = 0; i < gradVec.size(); i++) {
+		if (gradVec[i] > localMax) {
+			localMax = gradVec[i];
+			localCnt = 0;
+		}
+		else if(gradVec[i] < localMax) {
+			//localMaxIndex = i-1;
+			gradVec[i] > gradVec[i - 1] && gradVec[i] > gradVec[i - 2];
+			localCnt += 1;
+		}
+		if (localCnt == range) {//防止处于山坡的右侧时求得fakeMax//计数到达range的时候，需要判断是否是fakeMax
+			if (trueCnt > 0) {
+				if (!(localMax > gradVec[i - range-1] && localMax > gradVec[i - range - 2])){
+					localMax = gradVec[i];
+					localCnt = 0;
+					continue;
+				}
+			}
+			if (localMax > 3) {
+				localMaxIndex = i - range;
+				peakIndex.push_back(localMaxIndex);
+				peakValue.push_back(localMax);
+				trueCnt += 1;
+				localMax = gradVec[i];
+				localCnt = 0;
+			}
+		}
+	}
+	return true;
+}
+
+/*
+@ 正反向各求一次求交集
+@ (vector<double>&gradVec, vector<int>&tempPeakIndexF, vector<double>&tempGradVecF, vector<int>&tempPeakIndexB, vector<double>&tempGradVecB ,int range)
+*/
+bool CJINOItem1::GetMulPeaksEx2(vector<double>&gradVec, vector<int>&tempPeakIndexF, vector<double>&tempGradVecF, vector<int>&tempPeakIndexB, vector<double>&tempGradVecB ,int range) {
+	//vector<double>tempGradVecF;
+	//vector<int>tempPeakIndexF;
+	//vector<double>tempGradVecB;
+	//vector<int>tempPeakIndexB;
+
+	int localCnt = 0;
+	double localMax = -1000;
+	int localMaxIndex = 0;
+	bool findOneMax = false;
+	//正向找一次
+	for (int i = 0; i < gradVec.size(); i++) {
+		if (gradVec[i] > localMax) {
+			localMax = gradVec[i];
+			localCnt = 0;
+		}
+		else if (gradVec[i] < localMax) {
+			//localMaxIndex = i-1;
+			localCnt += 1;
+		}
+		if (localCnt == range) {
+			localMaxIndex = i - range;
+			tempPeakIndexF.push_back(localMaxIndex);
+			tempGradVecF.push_back(localMax);
+			localMax = -1000;
+			localCnt = 0;
+		}
+	}
+	localCnt = 0;
+	localMax = -1000;
+	localMaxIndex = 0;
+	//反向找一次
+	for (int j = gradVec.size()-1; j > 0; j--) {
+		if (gradVec[j] > localMax) {
+			localMax = gradVec[j];
+			localCnt = 0;
+		}
+		else if (gradVec[j] < localMax) {
+			//localMaxIndex = i-1;
+			localCnt += 1;
+		}
+		if (localCnt == range) {
+			localMaxIndex = j - range;
+			tempPeakIndexB.push_back(localMaxIndex);
+			tempGradVecB.push_back(localMax);
+			localMax = -1000;
+			localCnt = 0;
+		}
+	}
+	return true;
+}
+
+
+bool CJINOItem1::HistShow(vector<double>&inputVec, int maxValue,int directionHV) {
+	int histMaxV = maxValue;
+	if (directionHV == 0) {
+		if (maxValue < 30) {
+			histMaxV = maxValue + 30;
+		}
+		Mat histImg = Mat::ones(inputVec.size(), histMaxV + 2, CV_8UC3);
+		for (int i = 0; i < inputVec.size(); i++) {
+			Rect histI = Rect(histMaxV + 2 - inputVec[i], i, inputVec[i], 1);
+			cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
+		}
+		JINOFeature.histWindowWidth = inputVec.size();
+		destroyWindow(JINOFeature.histWindowName);//删除上一张图像的数据
+		imshow(JINOFeature.histWindowName, histImg);
+	}
+	if (directionHV == 1) {
+		Mat histImg = Mat::ones(histMaxV + 2, inputVec.size(), CV_8UC3);
+		for (int i = 0; i < inputVec.size(); i++) {
+			Rect histI = Rect(i, histMaxV + 2 - inputVec[i], 1, inputVec[i]);
+			cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
+		}
+		JINOFeature.histWindowHeight = histMaxV + 2;
+		destroyWindow(JINOFeature.histWindowName);
+		imshow(JINOFeature.histWindowName, histImg);
+	}
+	JINOFeature.directionHV = directionHV;
+	return true;
+}
