@@ -16,7 +16,7 @@ bool CJINOItem1::JINOMainProcess(Mat &src, Mat &outImg) {
 }
 
 /*
-@目前只针对灰度图处理
+@ 目前只针对灰度图处理
 */
 bool CJINOItem1::JINOImgProcess1(Mat &src, Mat &outImg) {
 
