@@ -77,6 +77,8 @@ BEGIN_MESSAGE_MAP(CJINORunDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_Analyze_Pic, &CJINORunDlg::OnClickedButtonAnalyzePic)
 	ON_BN_CLICKED(IDC_BUTTON_Reset_ROI, &CJINORunDlg::OnClickedButtonResetRoi)
 	ON_CBN_SELCHANGE(IDC_COMBO_Methode_Type, &CJINORunDlg::OnSelchangeComboMethodeType)
+	ON_WM_MOVE()
+	ON_WM_MOVING()
 END_MESSAGE_MAP()
 
 
@@ -120,6 +122,7 @@ BOOL CJINORunDlg::OnInitDialog()
 
 #pragma region 新建小窗口并绑定
 	CJINOItem1::GetInstance()->JINOWindowAttach(JINOFeature.littleWindowSize,0, "Display", JINOFeature.littleWindowName);
+
 #pragma endregion
 
 #pragma region 控件状态初始化
@@ -500,4 +503,28 @@ void CJINORunDlg::onMethodeComboboxChange() {
 	UpdateData(TRUE);//True string->variable;False variale->string
 	int curSel = ComboMethode.GetCurSel();
 	JINOFeature.curMethode = curSel + 1;
+}
+
+void CJINORunDlg::OnMove(int x, int y)
+{
+	CDialogEx::OnMove(x, y);
+	
+	// TODO: 在此处添加消息处理程序代码
+
+}
+
+
+void CJINORunDlg::OnMoving(UINT fwSide, LPRECT pRect)
+{
+	CDialogEx::OnMoving(fwSide, pRect);
+
+	// TODO: 在此处添加消息处理程序代码
+	CRect windowRect;
+	GetWindowRect(&windowRect);
+	if (JINOFeature.directionHV == 0) {
+		cv::moveWindow(JINOFeature.histWindowName, windowRect.left - JINOFeature.histWindowWidth-5, windowRect.top);
+	}
+	if (JINOFeature.directionHV == 1) {
+		cv::moveWindow(JINOFeature.histWindowName, windowRect.left, windowRect.top - JINOFeature.histWindowHeight - 45);
+	}
 }
