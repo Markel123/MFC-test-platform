@@ -32,6 +32,8 @@ public:
 // 实现
 protected:
 	DECLARE_MESSAGE_MAP()
+public:
+	
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
@@ -44,6 +46,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
+	
 END_MESSAGE_MAP()
 
 
@@ -53,6 +56,9 @@ END_MESSAGE_MAP()
 
 CJINORunDlg::CJINORunDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CJINORunDlg::IDD, pParent)
+	, m_NumNLine(0)
+	, m_NumNLine2(0)
+	, m_gradScale(0)
 {
 	
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
@@ -62,6 +68,12 @@ void CJINORunDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_COMBO_Methode_Type, ComboMethode);
+	//  DDX_Text(pDX, IDC_EDIT_NumNLine, m_NumNLine);
+	DDX_Text(pDX, IDC_EDIT_NumNLine, m_NumNLine);
+	DDX_Text(pDX, IDC_EDIT_NumNLine2, m_NumNLine2);
+	//  DDX_Text(pDX, IDC_EDIT_gradScale, m_radScale);
+	//  DDX_Text(pDX, IDC_EDIT_gradScale, m_gradScale);
+	DDX_Text(pDX, IDC_EDIT_gradScale, m_gradScale);
 }
 
 BEGIN_MESSAGE_MAP(CJINORunDlg, CDialogEx)
@@ -79,6 +91,7 @@ BEGIN_MESSAGE_MAP(CJINORunDlg, CDialogEx)
 	ON_CBN_SELCHANGE(IDC_COMBO_Methode_Type, &CJINORunDlg::OnSelchangeComboMethodeType)
 	ON_WM_MOVE()
 	ON_WM_MOVING()
+	ON_BN_CLICKED(IDC_BUTTON_Execute, &CJINORunDlg::OnClickedButtonExecute)
 END_MESSAGE_MAP()
 
 
@@ -522,9 +535,19 @@ void CJINORunDlg::OnMoving(UINT fwSide, LPRECT pRect)
 	CRect windowRect;
 	GetWindowRect(&windowRect);
 	if (JINOFeature.directionHV == 0) {
-		cv::moveWindow(JINOFeature.histWindowName, windowRect.left - JINOFeature.histWindowWidth-5, windowRect.top);
+		//cv::moveWindow(JINOFeature.histWindowName, windowRect.left - JINOFeature.histWindowWidth-5, windowRect.top + JINOFeature.ROIX);
 	}
 	if (JINOFeature.directionHV == 1) {
-		cv::moveWindow(JINOFeature.histWindowName, windowRect.left, windowRect.top - JINOFeature.histWindowHeight - 45);
+		//cv::moveWindow(JINOFeature.histWindowName, windowRect.left+JINOFeature.ROIY, windowRect.top - JINOFeature.histWindowHeight - 45);
 	}
+}
+
+
+void CJINORunDlg::OnClickedButtonExecute()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	UpdateData(TRUE);
+	JINOFeature.NumNLine = m_NumNLine;
+	JINOFeature.NumNLine2 = m_NumNLine2;
+	JINOFeature.gradScale = m_gradScale;
 }
