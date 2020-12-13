@@ -45,19 +45,34 @@ bool CJINOItem1::JINOImgProcess1(Mat &src, Mat &outImg) {
 #pragma endregion
 
 #pragma region 这里放图像处理逻辑 针对的是图像roiImg
+	JINOFeature.ROIX = ROI1.x;
+	JINOFeature.ROIY = ROI1.y;
 	Mat roiImg = outImg(ROI1);
 
 	vector <double>gradVector;
+	vector <double>gradVector2;
 	vector<int>peakIndexVec;
 	vector <double>peakValueVec;
 
-	int HV = 1, FB = 0;
+	int HV = 0, FB = 1;
 	GetGradVector(roiImg, gradVector,5,HV,FB);
+	GetGradVector(roiImg, gradVector2, 5, HV, 1-FB);
 	GetMulPeaksEx(gradVector, peakIndexVec, peakValueVec,5);
+
+	int templine1 = 0;
+	int templine2 = 0;
+	int tempIndex1 = JINOFeature.NumNLine;
+	int tempIndex2 = JINOFeature.NumNLine2;
+	auto scaleX = JINOFeature.gradScale;
+	GetLineWithoutTreshold(roiImg, templine1, 0, 1, 1, 1, scaleX);
+	GetLineWithoutTreshold(roiImg, templine2, 0, 0, 2, 1, scaleX);
 	int maxValue = *max_element(peakValueVec.begin(), peakValueVec.end());
 	int maxValIndex= max_element(gradVector.begin(), gradVector.end())- gradVector.begin();
-	HistShow(gradVector, maxValue, HV);
-	int temp = peakIndexVec[1];
+	Scalar colorX1(0, 255, 0);
+	Scalar colorX2(0, 0, 255);
+	HistShow(gradVector, maxValue, HV, "dispaly1",colorX1,0.2);
+	HistShow(gradVector2, maxValue, HV,"dispaly2",colorX2,0.2);
+	//int temp = peakIndexVec[1];
 	//如果
 	/*if (peakValueVec[1] < 3) {
 		peakIndVec.clear();
@@ -79,9 +94,21 @@ bool CJINOItem1::JINOImgProcess1(Mat &src, Mat &outImg) {
 		return false;
 	}*/
 
-	auto LineX1 = peakIndexVec[1] + ROI1.x;
-	auto LineY1 = peakIndexVec[1] + ROI1.y;
+	//auto LineX1 = peakIndexVec[1] + ROI1.x;
+	//auto LineY1 = peakIndexVec[1] + ROI1.y;
 
+	//竖边
+	/*auto LineX1 = templine1 + ROI1.x;
+	auto LineX2 = templine2 + ROI1.x;
+	line(src, Point(LineX1, ROI1.y), Point(LineX1, ROI1.y + ROI1.height), Scalar(0, 0, 255), 2);
+	line(src, Point(LineX2, ROI1.y), Point(LineX2, ROI1.y + ROI1.height), Scalar(0, 0, 255), 2);*/
+
+	//横边
+	auto LineY1 = templine1 + ROI1.y;
+	auto LineY2 = templine2 + ROI1.y;
+	line(src, Point(ROI1.x, LineY1), Point(ROI1.x + ROI1.width, LineY1), colorX1, 2);
+	line(src, Point(ROI1.x, LineY2), Point(ROI1.x + ROI1.width, LineY2), colorX2, 2);
+/*
 	if (HV == 1) {
 		line(src, Point(maxValIndex + ROI1.x-1, ROI1.y), Point(maxValIndex + ROI1.x-1, ROI1.y + ROI1.height), Scalar(0, 0, 255), 2);
 		for (int i = 0; i < peakIndexVec.size(); i++) {
@@ -98,7 +125,7 @@ bool CJINOItem1::JINOImgProcess1(Mat &src, Mat &outImg) {
 				line(src, Point(ROI1.x, peakIndexVec[i] + ROI1.y), Point(ROI1.x + ROI1.width, peakIndexVec[i] + ROI1.y), Scalar(0, 255, 0), 2);
 			}
 		}
-	}
+	}*/
 
 #pragma endregion
 
@@ -726,8 +753,8 @@ bool CJINOItem1::GetFirstGradient(Mat& src,
 #pragma endregion
 
 #pragma region 返回自动阈值 1.灰度阈值2.梯度阈值
-/* src：roiImg
- *@
+/* 
+@ src：roiImg
 */
 bool CJINOItem1::GetThresholdValueBin(Mat &src,double &BinThreshReturn) {
 	
@@ -800,6 +827,33 @@ bool CJINOItem1::GetGradVector(Mat &src, vector<double>&gradVec, int n, int dire
 #pragma endregion
 	return true;
 }
+
+/*
+@ 如果两个峰之间的最小值大于0，并且峰之间距离过近(黏连，主要是两条True边之间的灰度分布不均明暗变化干扰了梯度法抓边，如下图所示)，
+  则认为其中至少有一个峰为fake的(即使峰值会比较大)，将其中较小的峰值丢弃(暂时)
+*/
+bool CJINOItem1::GetFiltGradVec(vector<double>&gradVec,vector<double>&returnGradVec,int peakDist) {
+	return true;
+}
+
+/*
+@ 获取自动阈值
+*/
+bool CJINOItem1::GetAutoThreshold(vector<double>&gradVec,double scale) {
+	vector<int>trueLineVec; vector<double>trueValueVec;
+	vector<int>peakIndexVec; vector<double>peakValueVec;
+	auto maxV = *max_element(peakValueVec.begin(), peakValueVec.end());
+	GetMulPeaksEx(gradVec, peakIndexVec, peakValueVec, 5);
+	for (int i = 0; i < peakIndexVec.size(); i++) {
+		if (peakValueVec[i] > maxV * scale) {
+			trueLineVec.push_back(peakIndexVec[i]);
+			trueValueVec.push_back(peakValueVec[i]);
+		}
+	}
+	sort(trueValueVec.begin(), trueValueVec.end());
+
+	return true;
+}
 #pragma endregion
 
 bool CJINOItem1::GetThresholdValueGradEx(Mat &src, double &GradThreshReturn, int n, int directionLR, int directionFB) {
@@ -830,78 +884,17 @@ bool CJINOItem1::Preprocess(Mat &src) {
 }
 
 /*
+@ ver 0.1.0 
 @ 最简单的做法是认为ROI内最多不超过3条线，将三个梯度最大的索引找到并降序排序
 @ 先找全局最大值，之后以最大值为界，前半部分找一个最大值，后半部分找一个最大值
-@ ver 0.1.0 
 @ (vector<double>&inputVec, vector<int>&peakIndVec, vector<double>&peakValueVec,int directionHV,int lineNum,int interval,int n) {
 */
 bool CJINOItem1::GetMulPeaks(vector<double>&inputVec, vector<int>&peakIndVec, vector<double>&peakValueVec,int directionHV,int lineNum,int interval,int n) {
-	//auto gBlurVec = inputVec;
-	//cv::GaussianBlur(inputVec, gBlurVec, Size(10, 1), 10);
-	//gBlurVec=(vector<double>)gBlurVec;
-	//int maxInd = 0;
-	//if (!(maxInd < 0)) {
-	//	int maxValue = *max_element(gBlurVec.begin(), gBlurVec.end());
-	//	maxInd = max_element(gBlurVec.begin(), gBlurVec.end()) - gBlurVec.end();
-	//		
-	//}
-	////Method2  如果此值后面连续n(比如 3)个值都比它小，则认为它是局部最大值
-	////二阶导数
-	//vector<double>seGrad;
-	//for (int i = 0; i < gBlurVec.size() - 1; i++) {
-	//	seGrad.push_back(gBlurVec[i + 1] - gBlurVec[i]);
-	//}
-	/*
-	1.直接找全局最大值
-	2.
-	*/
 	int maxValue = *max_element(inputVec.begin(), inputVec.end());
 	int maxInd = max_element(inputVec.begin(), inputVec.end()) - inputVec.begin();
-	HistShow(inputVec, maxValue, directionHV);
-	//int histMaxV = maxValue;
-	//if (directionHV == 0) {
-	//	if (maxValue< 30) {
-	//		histMaxV = maxValue + 30;
-	//	}
-	//	Mat histImg = Mat::ones(inputVec.size(), histMaxV + 2, CV_8UC3);
-	//	for (int i = 0; i < inputVec.size(); i++) {
-	//		Rect histI = Rect(histMaxV + 2 - inputVec[i], i, inputVec[i],1);
-	//		cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
-	//	}
-	//	JINOFeature.histWindowWidth = inputVec.size();
-	//	destroyWindow(JINOFeature.histWindowName);
-	//	imshow(JINOFeature.histWindowName, histImg);
-	//}
-	//if (directionHV == 1) {
-	//	Mat histImg = Mat::ones(histMaxV + 2, inputVec.size(), CV_8UC3);
-	//	for (int i = 0; i < inputVec.size(); i++) {
-	//		Rect histI = Rect(i, histMaxV + 2 - inputVec[i], 1, inputVec[i]);
-	//		cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
-	//	}
-	//	JINOFeature.histWindowHeight = histMaxV + 2;
-	//	destroyWindow(JINOFeature.histWindowName);
-	//	imshow(JINOFeature.histWindowName, histImg);
-	//}
+	Scalar colorX(0, 0, 255);
+	HistShow(inputVec, maxValue, directionHV,"displayxx",colorX,0.2);
 	JINOFeature.directionHV = directionHV;
-	/*bool isLocalMax = false;
-	int localMaxIndex;
-	double localMaxValue = 0;
-	int localCount = 0;
-	for (int i = 0; i < inputVec.size(); i++) {
-		if (inputVec[i] > localMaxValue) {
-
-			localMaxValue = inputVec[i];
-		}
-		else if (inputVec[i] < localMaxValue) {
-
-
-		}
-	}*/
-	//目前认为最多存在三条边
-	//用递归来查找局部最大值
-	//1.查找全局最大值
-	//2.用全局最大索引将数组分割成2个
-	////////////
 	int maxVLeft = 0,maxVRight =0, maxIndLeft =0, maxIndRight = 0;
 	if (lineNum>1) {
 		//左侧//最大梯度的左/右侧可能会不存在线，最大梯度太靠左/右边界了
@@ -923,12 +916,6 @@ bool CJINOItem1::GetMulPeaks(vector<double>&inputVec, vector<int>&peakIndVec, ve
 			maxVRight = *max_element(newVectorR.begin(), newVectorR.end());
 			maxIndRight = max_element(newVectorR.begin(), newVectorR.end()) - newVectorR.begin() + maxInd + interval + 1;
 		}
-		//int secondV = max(maxVLeft, maxVRight); int thirdV = min(maxVLeft, maxVRight);
-		//auto secondInd = maxIndRight > maxIndLeft ? maxIndRight : maxIndLeft;
-		//auto thirdInd= maxIndRight < maxIndLeft ? maxIndRight : maxIndLeft;
-		//peakIndVec.push_back(secondInd);peakIndVec.push_back(thirdInd);
-		//peakValueVec.push_back(secondV); peakValueVec.push_back(thirdV);
-
 		peakIndVec.push_back(maxIndLeft);peakIndVec.push_back(maxInd);peakIndVec.push_back(maxVLeft);
 		peakValueVec.push_back(maxVLeft);peakValueVec.push_back(maxValue);peakValueVec.push_back(maxVRight);
 	}
@@ -936,9 +923,9 @@ bool CJINOItem1::GetMulPeaks(vector<double>&inputVec, vector<int>&peakIndVec, ve
 	return true;
 }
 /*
+@ ver 0.2.0 (in use)
 @ 如果当前最大值localMax往后 {range} 范围内没有比localMax大的值，则认为localMax为一个局部最大值
 @ 按照上->下 || 左->右 的顺序输出 局部最大值索引到peakIndex，值到peakValue
-@ ver 0.2.0
 @ (vector<int>&gradVec, vector<int>&peakIndex, vector<double>&peakValue, int range = 5)
 */
 bool CJINOItem1::GetMulPeaksEx(vector<double>&gradVec, vector<int>&peakIndex, vector<double>&peakValue, int range) {
@@ -948,15 +935,12 @@ bool CJINOItem1::GetMulPeaksEx(vector<double>&gradVec, vector<int>&peakIndex, ve
 	double localMax = -1000;
 	int localMaxIndex = 0;
 	bool findOneMax = false;
-	//正向找一次
 	for (int i = 0; i < gradVec.size(); i++) {
 		if (gradVec[i] > localMax) {
 			localMax = gradVec[i];
 			localCnt = 0;
 		}
 		else if(gradVec[i] < localMax) {
-			//localMaxIndex = i-1;
-			gradVec[i] > gradVec[i - 1] && gradVec[i] > gradVec[i - 2];
 			localCnt += 1;
 		}
 		if (localCnt == range) {//防止处于山坡的右侧时求得fakeMax//计数到达range的时候，需要判断是否是fakeMax
@@ -967,7 +951,7 @@ bool CJINOItem1::GetMulPeaksEx(vector<double>&gradVec, vector<int>&peakIndex, ve
 					continue;
 				}
 			}
-			if (localMax > 3) {
+			if (localMax > 3) {//初步过滤不合理的peaks
 				localMaxIndex = i - range;
 				peakIndex.push_back(localMaxIndex);
 				peakValue.push_back(localMax);
@@ -985,10 +969,6 @@ bool CJINOItem1::GetMulPeaksEx(vector<double>&gradVec, vector<int>&peakIndex, ve
 @ (vector<double>&gradVec, vector<int>&tempPeakIndexF, vector<double>&tempGradVecF, vector<int>&tempPeakIndexB, vector<double>&tempGradVecB ,int range)
 */
 bool CJINOItem1::GetMulPeaksEx2(vector<double>&gradVec, vector<int>&tempPeakIndexF, vector<double>&tempGradVecF, vector<int>&tempPeakIndexB, vector<double>&tempGradVecB ,int range) {
-	//vector<double>tempGradVecF;
-	//vector<int>tempPeakIndexF;
-	//vector<double>tempGradVecB;
-	//vector<int>tempPeakIndexB;
 
 	int localCnt = 0;
 	double localMax = -1000;
@@ -1037,31 +1017,77 @@ bool CJINOItem1::GetMulPeaksEx2(vector<double>&gradVec, vector<int>&tempPeakInde
 }
 
 
-bool CJINOItem1::HistShow(vector<double>&inputVec, int maxValue,int directionHV) {
+bool CJINOItem1::HistShow(vector<double>&inputVec, int maxValue,int directionHV,const char* name,Scalar color,double scale) {
+	Scalar baseColor(255, 0, 0);
 	int histMaxV = maxValue;
 	if (directionHV == 0) {
 		if (maxValue < 30) {
 			histMaxV = maxValue + 30;
 		}
-		Mat histImg = Mat::ones(inputVec.size(), histMaxV + 2, CV_8UC3);
+		Mat histImg = Mat::ones(inputVec.size(), 2*(histMaxV + 2), CV_8UC3);
 		for (int i = 0; i < inputVec.size(); i++) {
 			Rect histI = Rect(histMaxV + 2 - inputVec[i], i, inputVec[i], 1);
-			cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
+			cv::rectangle(histImg, histI, color, 1);
+		}
+		for (int i = 0; i < inputVec.size(); i++) {
+			if (inputVec[i] > maxValue*scale) {
+				Rect histI = Rect(histMaxV,i,inputVec[i],1);
+				cv::rectangle(histImg, histI, baseColor + color, 1);
+			}
+			else {
+				continue;
+			}
 		}
 		JINOFeature.histWindowWidth = inputVec.size();
-		destroyWindow(JINOFeature.histWindowName);//删除上一张图像的数据
-		imshow(JINOFeature.histWindowName, histImg);
+		destroyWindow(name);//删除上一张图像的数据
+		imshow(name, histImg);
 	}
 	if (directionHV == 1) {
 		Mat histImg = Mat::ones(histMaxV + 2, inputVec.size(), CV_8UC3);
 		for (int i = 0; i < inputVec.size(); i++) {
 			Rect histI = Rect(i, histMaxV + 2 - inputVec[i], 1, inputVec[i]);
-			cv::rectangle(histImg, histI, Scalar(0, 255, 0), 1);
+			cv::rectangle(histImg, histI, color, 1);
+		}
+		for (int i = 0; i < inputVec.size(); i++) {
+			if (inputVec[i] > maxValue*scale) {
+				Rect histI = Rect(i, histMaxV, 1, inputVec[i]);
+			}
+			else {
+				continue;
+			}
 		}
 		JINOFeature.histWindowHeight = histMaxV + 2;
-		destroyWindow(JINOFeature.histWindowName);
-		imshow(JINOFeature.histWindowName, histImg);
+		destroyWindow(name);
+		imshow(name, histImg);
 	}
 	JINOFeature.directionHV = directionHV;
+	return true;
+}
+
+bool CJINOItem1::HistMat(Mat &src) {
+	return true;
+}
+
+/*
+@ mjk
+@ (Mat &roiImg, int &returnIndex, int directionHV, int directionFB, int lineNo,int fromTo, double scale)
+*/
+bool CJINOItem1::GetLineWithoutTreshold(Mat &roiImg, int &returnIndex, int directionHV, int directionFB, int lineNo,int fromTo, double scale) {
+
+	vector<double>GradVec; vector<int>trueLineVec;
+	vector<int>peakIndexVec; vector<double>peakValueVec;
+	GetGradVector(roiImg, GradVec, 5, directionHV, directionFB);
+	GetMulPeaksEx(GradVec, peakIndexVec, peakValueVec, 5);
+	for (int i = 0; i < peakIndexVec.size(); i++) {
+		if (peakValueVec[i] > (*max_element(peakValueVec.begin(), peakValueVec.end()))*scale) {
+			trueLineVec.push_back(peakIndexVec[i]);
+		}
+	}
+	if (lineNo > trueLineVec.size() || lineNo < 1)
+	{
+		AfxMessageBox(_T("Grab Line Index exceedes the range!!!"));
+		return false;
+	}
+	returnIndex = (fromTo == 0) ? trueLineVec[lineNo - 1]: trueLineVec[trueLineVec.size() - lineNo];
 	return true;
 }
