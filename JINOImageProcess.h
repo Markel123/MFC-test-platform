@@ -38,7 +38,12 @@ public:
 	virtual bool GetMulPeaks(vector<double>&gradVec, vector<int>&peakindex,vector<double>&peakValue,int directionHV = 0,int linNum = 1,int interval=10,int n=5);
 	virtual bool GetMulPeaksEx(vector<double>&gradVec, vector<int>&peakIndex, vector<double>&peakValue, int range=5);
 	virtual bool GetMulPeaksEx2(vector<double>&gradVec, vector<int>&tempPeakIndexF, vector<double>&tempGradVecF, vector<int>&tempPeakIndexB, vector<double>&tempGradVecB, int range);
-	virtual bool HistShow(vector<double>&inputVec, int maxValue,int directionHV);
+	virtual bool GetFiltGradVec(vector<double>&gradVec, vector<double>&returnGradVec,int peakDist);
+	virtual bool GetAutoThreshold(vector<double>&gradVec,double scale);
+
+	virtual bool HistShow(vector<double>&inputVec, int maxValue,int directionHV,const char* name,Scalar color,double scale);
+	virtual bool HistMat(Mat &src);
+	virtual bool GetLineWithoutTreshold(Mat &roiImg, int &returnIndex, int directionHV, int directionFB, int lineNo,int fromTo, double scale);
 	virtual bool Preprocess(Mat &src);
 public:
 
@@ -60,6 +65,9 @@ public:
 	int startX, endX, startY, endY;
 	int histWindowWidth,histWindowHeight;
 	int directionHV = 0;
+	int ROIX = 0, ROIY = 0;
+	int NumNLine = 0, NumNLine2 = 0;
+	double gradScale = 0;
 	const char* littleWindowName = "JINOBounce";
 	const char* histWindowName = "HIST";
 
