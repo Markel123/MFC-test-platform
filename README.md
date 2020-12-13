@@ -16,6 +16,7 @@ This is an vision algrithom test platform based on OpenCV and MFC.
 * 点击Analyze按钮之后，画ROI功能关闭
 * 点击Analyze按钮之后，显示ROI内图像某个方向的梯度直方图到小窗口，并跟随主窗口移动
 * 2020/12/9 直方图显示变更: 左半边为原始梯度直方图，右半边为去除fake边后的直方图
+* 2020/12/13 测试二维码检测/to-do
 * Bug1：刚打开exe的时候，左上角的小窗口尺寸没初始化，显得很难看
 * Bug2：小窗口应该能够跟随鼠标移动才对
 
